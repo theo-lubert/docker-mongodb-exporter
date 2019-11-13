@@ -1,12 +1,15 @@
-FROM       alpine:latest
-MAINTAINER David Cuadrado <dacuad@facebook.com>
-EXPOSE     9001
+FROM golang:alpine as build
 
-ENV  GOPATH /go
-ENV APPPATH $GOPATH/src/github.com/dcu/mongodb_exporter
-COPY . $APPPATH
-RUN apk add --update -t build-deps go git mercurial libc-dev gcc libgcc \
-    && cd $APPPATH && go get -d && go build -o /bin/mongodb_exporter \
-    && apk del --purge build-deps && rm -rf $GOPATH
+RUN apk add --update -t build-deps git libc-dev gcc libgcc make \
+    && go get -u github.com/percona/mongodb_exporter \
+    && cd /go/src/github.com/percona/mongodb_exporter \
+    && make build \
+    && apk del --purge build-deps
+
+FROM golang:alpine
+
+EXPOSE 9216
+
+COPY --from=build /go/src/github.com/percona/mongodb_exporter/bin/mongodb_exporter /bin/mongodb_exporter
 
 ENTRYPOINT [ "/bin/mongodb_exporter" ]
